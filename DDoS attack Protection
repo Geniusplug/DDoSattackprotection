@@ -1,0 +1,44 @@
+from flask import Flask, request, abort
+from collections import defaultdict
+import time
+
+app = Flask(__name__)
+
+# Configuration
+REQUEST_LIMIT = 100  # Max requests per IP
+TIME_WINDOW = 60  # Time window in seconds
+
+# Dictionary to store request counts and timestamps
+request_counts = defaultdict(lambda: {'count': 0, 'timestamp': time.time()})
+
+@app.route('/')
+def home():
+    # Get the IP address of the requester
+    ip_address = request.remote_addr
+    
+    # Get the current time
+    current_time = time.time()
+    
+    # Get the request count and timestamp for this IP
+    request_info = request_counts[ip_address]
+    
+    # Reset count if outside of time window
+    if current_time - request_info['timestamp'] > TIME_WINDOW:
+        request_info['count'] = 0
+        request_info['timestamp'] = current_time
+    
+    # Increment request count
+    request_info['count'] += 1
+    
+    # Check if request limit is exceeded
+    if request_info['count'] > REQUEST_LIMIT:
+        abort(429)  # Too many requests
+    
+    return "Welcome to the protected server!"
+
+@app.errorhandler(429)
+def too_many_requests(e):
+    return "Too many requests. Please try again later.", 429
+
+if __name__ == '__main__':
+    app.run(debug=True)
